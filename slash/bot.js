@@ -1,8 +1,20 @@
 const { Client, GatewayIntentBits } = require('discord.js');
 const { EmbedBuilder } = require('discord.js');
+const mysql = require('mysql2');
+const connection = mysql.createConnection({
+  host: 'XXXXXXXXX',
+  user: 'XXXXXXXXXXX',
+  password: 'XXXXXXXXXX',
+  database: 'XXXXXXXXXXX'
+});
+
+require('dotenv').config();
+
+const token = process.env.TOKEN;
 
 
-const { token, author, bot_name, prefix } = require('./config.json');
+
+const {  author, bot_name, prefix,lang,package } = require('./config.json');
 const { data } = require('./commands');
 
 const client = new Client({
@@ -15,16 +27,20 @@ const client = new Client({
   ],
 });
 
-client.once('ready', async () => {
-  console.log('Ready!');
-
-  try {
-    const commands = await client.application.commands.set(data);
-    console.log(`${commands.size} slash command(s) registered.`);
-  } catch (error) {
-    console.error(error);
-  }
-});
+client.on('ready', async () => {
+    console.log(`Logged in as ${client.user.tag}!`);
+    try {
+      const commands = await client.application.commands.set(data);
+      console.log(`${commands.size} slash command(s) registered.`);
+    } catch (error) {
+      console.error(error);
+    }
+    connection.connect((err) => {
+      if (err) throw err;
+      console.log('Connected to MySQL!');
+      
+    });
+  });
 
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isCommand()) return;
@@ -135,7 +151,7 @@ client.on('interactionCreate', async (interaction) => {
       // .addFields({ name: 'Inline field title', value: 'Some value here', inline: true })
       // .setImage('https://images-ext-1.discordapp.net/external/tYzRnigVRzn1u_XIDuvD0hDH7GsuDzp4bTiqxp68lnc/%3Fv%3D4%3Fs%3D400/https/avatars.githubusercontent.com/u/78679057?width=575&height=575')
       .setTimestamp()
-    // .setFooter({ text: 'Enjoy', iconURL: '' });
+    .setFooter({ text: `Made with ${lang}--${package}`, iconURL: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQju-vgVTmpkVyDPKqMTKTZTZI-usr9qh2vacUgxp-HUB5Zyz2C82G5hraSt1d1FAyd6ZY&usqp=CAU' });
 
     interaction.reply({ embeds: [exampleEmbed] });
   }
@@ -152,25 +168,50 @@ client.on('interactionCreate', async (interaction) => {
     )) {
 
       const user = interaction.options.getUser('user');
-      //  const role = interaction.options.getRole('role');
       const reason = interaction.options.getString('reason');
-      //  const channel = interaction.options.getChannel('channel');
-      console.log(`He has the role ${rolName}`)
+      connection.query("Create table if not exists wa(name varchar(30), reason varchar(30))"
+    , (err, result) => {
+        if (err) throw err;
+        console.log('Table created!');
+      });
+    connection.query(`INSERT INTO wa VALUES ('${user}', '${reason}')`, (err, result) => {
+        if (err) throw err;
+        console.log('Row inserted!');
+      });
+    // message.reply("hello")
+      
+    connection.query(`SELECT * FROM wa where name='${user}'`, (err, rows) => {
+      if (err) throw err;
+      console.log('Data received from MySQL:\n');
+      let s="";
+      for(x in rows){
+        s+="`User`: "+rows[x].name+" `Reason`: "+rows[x].reason+"\n";
 
-      const message = interaction.options.getString('message');
-      const exampleEmbed = new EmbedBuilder()
+      }
+        connection.query(`select count(*) as count from wa where name='${user}'`, async(err, rows) => {
+      console.log(rows[0].count);
+          const exampleEmbed = new EmbedBuilder()
         .setColor(0x0099FF)
-        .setTitle(`Warning for ${user.tag}`)
+        .setTitle("Warning :warning:")
+        .setDescription(`\`Warning for ${user.tag} | No. of Warnings: ${rows[0].count}\``)
         .setTimestamp()
         .addFields(
           { name: 'Reason', value: reason },
-          { name: 'Message', value: message },
+          {name:'previuos warnings',value:s}
         )
         .setFooter({ text: `Warned by ${interaction.user.tag}`, iconURL: interaction.user.avatarURL() });
-      interaction.reply({ embeds: [exampleEmbed] });
-    }
-    else {
-      interaction.reply("You don't have the permission to use this command")
+        await interaction.reply({ content: `${user}`, fetchReply: true });
+      interaction.editReply({ embeds: [exampleEmbed]});
+       
+    })
+        
+     
+      
+
+      // message.reply();
+    });}
+    else{
+      interaction.reply("You don't have permission to warn others")
     }
 
 
@@ -188,7 +229,7 @@ client.on('interactionCreate', async (interaction) => {
       const roleNames = member.roles.cache.map(role => role.id);
       
       for (x in roleNames) {
-        roleNames[x]!='924613620401332234'?arr[h]=`<@&${roleNames[x]}>`:f=1;
+        roleNames[x]!='980518130495402095'?arr[h]=`<@&${roleNames[x]}>`:f=1;
         h++
       }
       interaction.reply(`Your roles: ${arr}`);
@@ -213,7 +254,7 @@ client.on('interactionCreate', async (interaction) => {
     
 
   }
-
+ 
 });
 
 
